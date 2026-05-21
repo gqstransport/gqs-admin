@@ -1,0 +1,83 @@
+@import "tailwindcss";
+
+:root {
+  /* Brand palette (style guide image 1) */
+  --color-primary-navy: #0c1f3c;
+  --color-secondary-blue: #1f3a5f;
+  --color-accent-gold: #e2b844;
+  --color-surface-soft: #faf6ed;
+  --color-text-primary: #111827;
+  --color-text-muted: #4b5563;
+  --color-surface-card: #ffffff;
+  --color-footer-bg: #111827;
+
+  /* Reference UI tokens (image 2) mapped to shared roles */
+  --color-ui-topbar: #05162e;
+  --color-ui-cta: var(--color-accent-gold);
+  --color-muted: #6b7280;
+  --color-border: color-mix(in srgb, var(--color-primary-navy) 10%, transparent);
+  --color-border-light: rgba(255, 255, 255, 0.1);
+}
+
+@theme inline {
+  --color-background: var(--color-surface-soft);
+  --color-foreground: var(--color-text-primary);
+  --color-primary: var(--color-primary-navy);
+  --color-accent: var(--color-accent-gold);
+  --color-border: var(--color-border);
+  --color-muted: var(--color-muted);
+  --color-surface-soft: var(--color-surface-soft);
+}
+
+@layer utilities {
+  .glass {
+    @apply bg-white/70 backdrop-blur-md border border-white/20 shadow-xl;
+  }
+
+  .glass-dark {
+    @apply bg-black/20 backdrop-blur-lg border border-white/10 shadow-2xl;
+  }
+
+  .glow {
+    box-shadow: 0 0 20px -5px var(--color-accent-gold);
+  }
+
+  .gradient-line {
+    background: linear-gradient(to right, var(--color-primary-navy) 0%, var(--color-accent-gold) 50%, var(--color-primary-navy) 100%);
+  }
+
+  .gradient-border-t {
+    position: relative;
+  }
+
+  .gradient-border-t::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(to right, var(--color-primary-navy) 0%, var(--color-accent-gold) 50%, var(--color-primary-navy) 100%);
+  }
+
+  .gradient-border-s {
+    position: relative;
+  }
+
+  .gradient-border-s::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 4px;
+    background: linear-gradient(to bottom, var(--color-primary-navy) 0%, var(--color-accent-gold) 50%, var(--color-primary-navy) 100%);
+  }
+}
+
+body {
+  background: var(--color-surface-soft);
+  color: var(--color-text-primary);
+  font-family: system-ui, -apple-system, sans-serif;
+  margin: 0;
+}
