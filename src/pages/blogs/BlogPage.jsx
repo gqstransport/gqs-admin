@@ -1,7 +1,11 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { useAdmin } from '../../context/AdminContext';
-import { Plus, Edit2, Trash2, X } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Calendar } from 'lucide-react';
 import JoditEditor from 'jodit-react';
+import { getBlogEditorConfig } from '../../lib/joditConfig';
+import ListToolbar from '../../components/ListToolbar';
+import { useFilteredPagination } from '../../hooks/useFilteredPagination';
+import { getItemTimestamp } from '../../lib/activity';
 
 const BlogPage = () => {
   const { blogs, addBlog, updateBlog, deleteBlog, uploadFile } = useAdmin();
@@ -72,14 +76,26 @@ const BlogPage = () => {
     }
   };
 
-  const config = {
-    readonly: false,
-    placeholder: 'Start typing your rich text blog content here...',
-    minHeight: 400,
-    style: {
-      fontFamily: 'inherit',
-    }
-  };
+  const editorConfig = useMemo(
+    () => getBlogEditorConfig('Start typing your rich text blog content here...'),
+    []
+  );
+
+  const categories = useMemo(
+    () => [...new Set(blogs.map((b) => b.category).filter(Boolean))].sort(),
+    [blogs]
+  );
+
+  const list = useFilteredPagination(blogs, {
+    searchFields: ['title', 'excerpt', 'author', 'category'],
+    filterFns: {
+      status: (item, val) => item.status === val,
+      category: (item, val) => item.category === val,
+    },
+    sortFn: (a, b) => getItemTimestamp(b) - getItemTimestamp(a),
+    pageSize: 9,
+    defaultView: 'table',
+  });
 
   if (isEditing) {
     return (
@@ -199,11 +215,14 @@ const BlogPage = () => {
             </label>
             <div className="rounded-lg overflow-hidden border border-gray-300 shadow-sm">
               <JoditEditor
+                key={currentBlog.id ?? 'new-blog'}
                 ref={editor}
-                value={currentBlog.content}
-                config={config}
+                value={currentBlog.content || ''}
+                config={editorConfig}
                 tabIndex={1}
-                onBlur={newContent => setCurrentBlog({...currentBlog, content: newContent})}
+                onChange={(newContent) =>
+                  setCurrentBlog((prev) => ({ ...prev, content: newContent }))
+                }
               />
             </div>
           </div>
@@ -233,43 +252,147 @@ const BlogPage = () => {
         </button>
       </div>
 
-      <div className="glass rounded-xl overflow-hidden shadow-sm border border-gray-200">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="bg-gray-50/50 border-b border-gray-200">
-              <th className="p-4 font-semibold text-gray-600 text-sm uppercase tracking-wider">Title</th>
-              <th className="p-4 font-semibold text-gray-600 text-sm uppercase tracking-wider">Category</th>
-              <th className="p-4 font-semibold text-gray-600 text-sm uppercase tracking-wider">Date</th>
-              <th className="p-4 font-semibold text-gray-600 text-sm uppercase tracking-wider">Status</th>
-              <th className="p-4 font-semibold text-gray-600 text-sm uppercase tracking-wider text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {blogs.length === 0 ? (
-              <tr><td colSpan="5" className="p-8 text-center text-gray-500">No blog posts found. Create one!</td></tr>
-            ) : blogs.map(blog => (
-              <tr key={blog.id} className="hover:bg-gray-50/50 transition-colors">
-                <td className="p-4 font-bold text-[var(--color-primary-navy)]">{blog.title}</td>
-                <td className="p-4 text-gray-500 text-sm">{blog.category}</td>
-                <td className="p-4 text-gray-500 text-sm">{new Date(blog.date).toLocaleDateString()}</td>
-                <td className="p-4">
-                  <span className={`px-3 py-1 rounded-full text-xs font-bold ${blog.status === 'Published' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-700'}`}>
+      <ListToolbar
+        search={list.search}
+        onSearchChange={list.setSearch}
+        searchPlaceholder="Search posts by title, author, category…"
+        filterFields={[
+          {
+            key: 'status',
+            label: 'Status',
+            value: list.filters.status || 'all',
+            onChange: (v) => list.setFilter('status', v),
+            options: [
+              { value: 'all', label: 'All statuses' },
+              { value: 'Published', label: 'Published' },
+              { value: 'Draft', label: 'Draft' },
+            ],
+          },
+          {
+            key: 'category',
+            label: 'Category',
+            value: list.filters.category || 'all',
+            onChange: (v) => list.setFilter('category', v),
+            options: [
+              { value: 'all', label: 'All categories' },
+              ...categories.map((c) => ({ value: c, label: c })),
+            ],
+          },
+        ]}
+        page={list.page}
+        totalPages={list.totalPages}
+        onPageChange={list.setPage}
+        pageSize={list.pageSize}
+        onPageSizeChange={list.setPageSize}
+        totalCount={blogs.length}
+        filteredCount={list.totalCount}
+        viewMode={list.viewMode}
+        onViewModeChange={list.setViewMode}
+      />
+
+      {list.totalCount === 0 ? (
+        <div className="glass rounded-xl border border-gray-200 p-12 text-center text-gray-500">
+          {blogs.length === 0 ? 'No blog posts found. Create one!' : 'No posts match your filters.'}
+        </div>
+      ) : list.viewMode === 'table' ? (
+        <div className="glass overflow-hidden rounded-xl border border-gray-200 shadow-sm">
+          <table className="w-full border-collapse text-left">
+            <thead>
+              <tr className="border-b border-gray-200 bg-gray-50/50">
+                <th className="p-4 text-sm font-semibold uppercase tracking-wider text-gray-600">Title</th>
+                <th className="p-4 text-sm font-semibold uppercase tracking-wider text-gray-600">Category</th>
+                <th className="p-4 text-sm font-semibold uppercase tracking-wider text-gray-600">Date</th>
+                <th className="p-4 text-sm font-semibold uppercase tracking-wider text-gray-600">Status</th>
+                <th className="p-4 text-right text-sm font-semibold uppercase tracking-wider text-gray-600">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {list.paginated.map((blog) => (
+                <tr key={blog.id} className="transition-colors hover:bg-gray-50/50">
+                  <td className="p-4 font-bold text-[var(--color-primary-navy)]">{blog.title}</td>
+                  <td className="p-4 text-sm text-gray-500">{blog.category}</td>
+                  <td className="p-4 text-sm text-gray-500">
+                    {blog.date ? new Date(blog.date).toLocaleDateString() : '—'}
+                  </td>
+                  <td className="p-4">
+                    <span
+                      className={`rounded-full px-3 py-1 text-xs font-bold ${
+                        blog.status === 'Published'
+                          ? 'bg-emerald-100 text-emerald-700'
+                          : 'bg-gray-200 text-gray-700'
+                      }`}
+                    >
+                      {blog.status}
+                    </span>
+                  </td>
+                  <td className="p-4 text-right">
+                    <button
+                      onClick={() => handleEdit(blog)}
+                      className="mr-2 rounded-lg p-2 text-blue-600 transition-colors hover:bg-blue-50"
+                    >
+                      <Edit2 size={18} />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(blog.id)}
+                      className="rounded-lg p-2 text-red-600 transition-colors hover:bg-red-50"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {list.paginated.map((blog) => (
+            <div
+              key={blog.id}
+              className="glass flex flex-col overflow-hidden rounded-xl border border-gray-200 transition-all hover:shadow-xl"
+            >
+              <div className="border-b border-gray-100 p-5">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <span className="text-xs font-bold uppercase tracking-wider text-[var(--color-accent-gold)]">
+                    {blog.category}
+                  </span>
+                  <span
+                    className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
+                      blog.status === 'Published'
+                        ? 'bg-emerald-100 text-emerald-700'
+                        : 'bg-gray-200 text-gray-700'
+                    }`}
+                  >
                     {blog.status}
                   </span>
-                </td>
-                <td className="p-4 text-right">
-                  <button onClick={() => handleEdit(blog)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg mr-2 transition-colors">
-                    <Edit2 size={18} />
-                  </button>
-                  <button onClick={() => handleDelete(blog.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-                    <Trash2 size={18} />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                </div>
+                <h3 className="line-clamp-2 text-lg font-bold text-[var(--color-primary-navy)]">{blog.title}</h3>
+                <p className="mt-2 line-clamp-2 text-sm text-gray-500">{blog.excerpt}</p>
+                {blog.date && (
+                  <p className="mt-3 flex items-center gap-1 text-xs text-gray-400">
+                    <Calendar className="h-3.5 w-3.5" />
+                    {new Date(blog.date).toLocaleDateString()}
+                  </p>
+                )}
+              </div>
+              <div className="flex gap-2 border-t border-gray-100 p-4">
+                <button
+                  onClick={() => handleEdit(blog)}
+                  className="flex-1 rounded-lg bg-blue-50 py-2 text-xs font-bold text-blue-600 hover:bg-blue-100"
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => handleDelete(blog.id)}
+                  className="flex-1 rounded-lg bg-red-50 py-2 text-xs font-bold text-red-600 hover:bg-red-100"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

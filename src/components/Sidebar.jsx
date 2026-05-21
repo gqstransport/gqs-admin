@@ -13,7 +13,7 @@ const Sidebar = () => {
   ];
 
   return (
-    <div className="w-64 bg-[var(--color-primary-navy)] text-white flex flex-col min-h-screen sticky top-0 shadow-xl z-10">
+    <aside className="flex h-screen w-64 shrink-0 flex-col bg-[var(--color-primary-navy)] text-white shadow-xl z-10">
       <div className="p-6 text-2xl font-black tracking-tight text-[var(--color-accent-gold)] border-b border-white/10">
         GQS ADMIN
       </div>
@@ -42,7 +42,7 @@ const Sidebar = () => {
       <div className="p-4 border-t border-white/10 text-sm text-gray-400 text-center">
         v1.0.0
       </div>
-    </div>
+    </aside>
   );
 };
 

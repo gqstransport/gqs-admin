@@ -1,6 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useAdmin } from '../../context/AdminContext';
-import { Plus, Edit2, Trash2, X, MapPin, Info, Settings, Image as ImageIcon } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, MapPin, Image as ImageIcon } from 'lucide-react';
+import ListToolbar from '../../components/ListToolbar';
+import { useFilteredPagination } from '../../hooks/useFilteredPagination';
+import { getItemTimestamp } from '../../lib/activity';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
@@ -44,6 +47,22 @@ const ProjectPage = () => {
       e.target.value = '';
     }
   };
+
+  const locations = useMemo(
+    () => [...new Set(projects.map((p) => p.location).filter(Boolean))].sort(),
+    [projects]
+  );
+
+  const list = useFilteredPagination(projects, {
+    searchFields: ['title', 'scope', 'location', 'equipment', 'challenge', 'status'],
+    filterFns: {
+      status: (item, val) => item.status === val,
+      location: (item, val) => item.location === val,
+    },
+    sortFn: (a, b) => getItemTimestamp(b) - getItemTimestamp(a),
+    pageSize: 6,
+    defaultView: 'cards',
+  });
 
   const handleSave = (e) => {
     e.preventDefault();
@@ -207,53 +226,176 @@ const ProjectPage = () => {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {projects.length === 0 ? (
-          <div className="col-span-full p-12 text-center text-gray-500 glass rounded-xl">No projects found. Add your first project!</div>
-        ) : projects.map(project => (
-          <div key={project.id} className="glass rounded-xl flex flex-col hover:shadow-2xl transition-all duration-300 overflow-hidden border border-gray-200">
-            <div className="relative aspect-[16/10] bg-gray-100 border-b border-gray-200 flex items-center justify-center overflow-hidden">
+      <ListToolbar
+        search={list.search}
+        onSearchChange={list.setSearch}
+        searchPlaceholder="Search projects by title, location, scope…"
+        filterFields={[
+          {
+            key: 'status',
+            label: 'Status',
+            value: list.filters.status || 'all',
+            onChange: (v) => list.setFilter('status', v),
+            options: [
+              { value: 'all', label: 'All statuses' },
+              { value: 'Completed', label: 'Completed' },
+              { value: 'Ongoing', label: 'Ongoing' },
+              { value: 'Planned', label: 'Planned' },
+            ],
+          },
+          {
+            key: 'location',
+            label: 'Location',
+            value: list.filters.location || 'all',
+            onChange: (v) => list.setFilter('location', v),
+            options: [
+              { value: 'all', label: 'All locations' },
+              ...locations.map((loc) => ({ value: loc, label: loc })),
+            ],
+          },
+        ]}
+        page={list.page}
+        totalPages={list.totalPages}
+        onPageChange={list.setPage}
+        pageSize={list.pageSize}
+        onPageSizeChange={list.setPageSize}
+        pageSizeOptions={[6, 9, 12, 18]}
+        totalCount={projects.length}
+        filteredCount={list.totalCount}
+        viewMode={list.viewMode}
+        onViewModeChange={list.setViewMode}
+      />
+
+      {list.totalCount === 0 ? (
+        <div className="glass col-span-full rounded-xl p-12 text-center text-gray-500">
+          {projects.length === 0
+            ? 'No projects found. Add your first project!'
+            : 'No projects match your filters.'}
+        </div>
+      ) : list.viewMode === 'cards' ? (
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {list.paginated.map((project) => (
+            <div
+              key={project.id}
+              className="glass flex flex-col overflow-hidden rounded-xl border border-gray-200 transition-all duration-300 hover:shadow-2xl"
+            >
+              <div className="relative flex aspect-[16/10] items-center justify-center overflow-hidden border-b border-gray-200 bg-gray-100">
               {project.image ? (
                 <img 
-                  src={project.image.startsWith('/') ? `${API_BASE}${project.image}` : project.image} 
+                    src={
+                      project.image.startsWith('/')
+                        ? `${API_BASE}${project.image}`
+                        : project.image
+                    }
                   alt={project.title} 
-                  className="object-cover w-full h-full"
+                    className="h-full w-full object-cover"
                   onError={(e) => {
                     e.target.style.display = 'none';
                     e.target.nextSibling.style.display = 'flex';
                   }}
                 />
               ) : null}
-              <div className="absolute inset-0 hidden flex-col items-center justify-center text-gray-400 bg-gray-50">
+                <div className="absolute inset-0 hidden flex-col items-center justify-center bg-gray-50 text-gray-400">
                 <ImageIcon size={40} className="mb-2" />
                 <span className="text-xs">No preview available</span>
               </div>
-              <div className="absolute top-3 left-3">
-                <span className={`px-2.5 py-1 rounded text-xs font-bold shadow ${project.status === 'Completed' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}`}>
+                <div className="absolute left-3 top-3">
+                  <span
+                    className={`rounded px-2.5 py-1 text-xs font-bold shadow ${
+                      project.status === 'Completed'
+                        ? 'bg-emerald-100 text-emerald-700'
+                        : 'bg-blue-100 text-blue-700'
+                    }`}
+                  >
                   {project.status}
                 </span>
               </div>
             </div>
-            <div className="p-6 flex-1 flex flex-col justify-between">
+              <div className="flex flex-1 flex-col justify-between p-6">
               <div>
-                <div className="flex items-center gap-1.5 text-[var(--color-accent-gold)] font-bold text-xs uppercase tracking-wider mb-2">
+                  <div className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[var(--color-accent-gold)]">
                   <MapPin size={14} />
                   {project.location}
+                  </div>
+                  <h3 className="mb-2 line-clamp-1 text-xl font-bold text-[var(--color-primary-navy)]">
+                    {project.title}
+                  </h3>
+                  <p className="mb-4 line-clamp-3 text-sm text-gray-600">{project.scope}</p>
                 </div>
-                <h3 className="text-xl font-bold text-[var(--color-primary-navy)] mb-2 line-clamp-1">{project.title}</h3>
-                <p className="text-gray-600 text-sm line-clamp-3 mb-4">{project.scope}</p>
-              </div>
-
-              <div className="pt-4 border-t border-gray-100 flex justify-between items-center">
-                <div className="flex gap-2">
-                  <button onClick={() => handleEdit(project)} className="px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg text-xs font-bold transition-all">Edit</button>
-                  <button onClick={() => handleDelete(project.id)} className="px-3 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg text-xs font-bold transition-all">Delete</button>
-                </div>
+                <div className="flex gap-2 border-t border-gray-100 pt-4">
+                  <button
+                    onClick={() => handleEdit(project)}
+                    className="rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-600 transition-all hover:bg-blue-100"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => handleDelete(project.id)}
+                    className="rounded-lg bg-red-50 px-3 py-1.5 text-xs font-bold text-red-600 transition-all hover:bg-red-100"
+                  >
+                    Delete
+                  </button>
               </div>
             </div>
           </div>
         ))}
       </div>
+      ) : (
+        <div className="glass overflow-hidden rounded-xl border border-gray-200 shadow-sm">
+          <table className="w-full border-collapse text-left">
+            <thead>
+              <tr className="border-b border-gray-200 bg-gray-50/50">
+                <th className="p-4 text-sm font-semibold uppercase tracking-wider text-gray-600">Project</th>
+                <th className="p-4 text-sm font-semibold uppercase tracking-wider text-gray-600">Location</th>
+                <th className="p-4 text-sm font-semibold uppercase tracking-wider text-gray-600">Status</th>
+                <th className="p-4 text-sm font-semibold uppercase tracking-wider text-gray-600">Scope</th>
+                <th className="p-4 text-right text-sm font-semibold uppercase tracking-wider text-gray-600">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {list.paginated.map((project) => (
+                <tr key={project.id} className="transition-colors hover:bg-gray-50/50">
+                  <td className="p-4 font-bold text-[var(--color-primary-navy)]">{project.title}</td>
+                  <td className="p-4 text-sm text-gray-500">
+                    <span className="flex items-center gap-1">
+                      <MapPin size={14} className="text-[var(--color-accent-gold)]" />
+                      {project.location}
+                    </span>
+                  </td>
+                  <td className="p-4">
+                    <span
+                      className={`rounded-full px-3 py-1 text-xs font-bold ${
+                        project.status === 'Completed'
+                          ? 'bg-emerald-100 text-emerald-700'
+                          : 'bg-blue-100 text-blue-700'
+                      }`}
+                    >
+                      {project.status}
+                    </span>
+                  </td>
+                  <td className="max-w-xs p-4 text-sm text-gray-500">
+                    <span className="line-clamp-2">{project.scope}</span>
+                  </td>
+                  <td className="p-4 text-right">
+                    <button
+                      onClick={() => handleEdit(project)}
+                      className="mr-2 rounded-lg p-2 text-blue-600 hover:bg-blue-50"
+                    >
+                      <Edit2 size={18} />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(project.id)}
+                      className="rounded-lg p-2 text-red-600 hover:bg-red-50"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 };

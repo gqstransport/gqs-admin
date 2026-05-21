@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useAdmin } from '../../context/AdminContext';
 import { Plus, Edit2, Trash2, X, Tag } from 'lucide-react';
+import ListToolbar from '../../components/ListToolbar';
+import { useFilteredPagination } from '../../hooks/useFilteredPagination';
 
 const CATEGORY_MAP = {
   'heavy-transport': 'Heavy Transport Services',
@@ -75,6 +77,17 @@ const ServicePage = () => {
     setIsEditing(false);
     resetForm();
   };
+
+  const list = useFilteredPagination(services, {
+    searchFields: ['title', 'description', 'slug', 'categorySlug', 'overview'],
+    filterFns: {
+      status: (item, val) => (item.status || 'Active') === val,
+      category: (item, val) => item.categorySlug === val,
+    },
+    sortFn: (a, b) => (a.title || '').localeCompare(b.title || ''),
+    pageSize: 9,
+    defaultView: 'table',
+  });
 
   const resetForm = () => {
     setCurrentService({
@@ -257,49 +270,148 @@ const ServicePage = () => {
         </button>
       </div>
 
-      <div className="glass rounded-xl overflow-hidden shadow-sm border border-gray-200">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="bg-gray-50/50 border-b border-gray-200">
-              <th className="p-4 font-semibold text-gray-600 text-sm uppercase tracking-wider">Service Name</th>
-              <th className="p-4 font-semibold text-gray-600 text-sm uppercase tracking-wider">Category</th>
-              <th className="p-4 font-semibold text-gray-600 text-sm uppercase tracking-wider">Status</th>
-              <th className="p-4 font-semibold text-gray-600 text-sm uppercase tracking-wider text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {services.length === 0 ? (
-              <tr><td colSpan="4" className="p-8 text-center text-gray-500">No services found. Add one!</td></tr>
-            ) : services.map(service => (
-              <tr key={service.id} className="hover:bg-gray-50/50 transition-colors">
-                <td className="p-4 w-2/5">
-                  <div className="font-bold text-[var(--color-primary-navy)]">{service.title}</div>
-                  <div className="text-xs text-gray-400">/{service.slug}</div>
-                </td>
-                <td className="p-4 w-1/4">
-                  <span className="flex items-center gap-1.5 text-sm text-gray-600">
-                    <Tag size={14} className="text-[var(--color-accent-gold)]" />
-                    {CATEGORY_MAP[service.categorySlug] || service.categorySlug}
-                  </span>
-                </td>
-                <td className="p-4 w-1/6">
-                  <span className={`px-3 py-1 rounded-full text-xs font-bold ${service.status !== 'Inactive' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
-                    {service.status || 'Active'}
-                  </span>
-                </td>
-                <td className="p-4 text-right w-1/6">
-                  <button onClick={() => handleEdit(service)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg mr-2 transition-colors">
-                    <Edit2 size={18} />
-                  </button>
-                  <button onClick={() => handleDelete(service.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-                    <Trash2 size={18} />
-                  </button>
-                </td>
+      <ListToolbar
+        search={list.search}
+        onSearchChange={list.setSearch}
+        searchPlaceholder="Search services by title, slug, description…"
+        filterFields={[
+          {
+            key: 'status',
+            label: 'Status',
+            value: list.filters.status || 'all',
+            onChange: (v) => list.setFilter('status', v),
+            options: [
+              { value: 'all', label: 'All statuses' },
+              { value: 'Active', label: 'Active' },
+              { value: 'Inactive', label: 'Inactive' },
+            ],
+          },
+          {
+            key: 'category',
+            label: 'Category',
+            value: list.filters.category || 'all',
+            onChange: (v) => list.setFilter('category', v),
+            options: [
+              { value: 'all', label: 'All categories' },
+              ...Object.entries(CATEGORY_MAP).map(([slug, name]) => ({
+                value: slug,
+                label: name,
+              })),
+            ],
+          },
+        ]}
+        page={list.page}
+        totalPages={list.totalPages}
+        onPageChange={list.setPage}
+        pageSize={list.pageSize}
+        onPageSizeChange={list.setPageSize}
+        totalCount={services.length}
+        filteredCount={list.totalCount}
+        viewMode={list.viewMode}
+        onViewModeChange={list.setViewMode}
+      />
+
+      {list.totalCount === 0 ? (
+        <div className="glass rounded-xl border border-gray-200 p-12 text-center text-gray-500">
+          {services.length === 0 ? 'No services found. Add one!' : 'No services match your filters.'}
+        </div>
+      ) : list.viewMode === 'table' ? (
+        <div className="glass overflow-hidden rounded-xl border border-gray-200 shadow-sm">
+          <table className="w-full border-collapse text-left">
+            <thead>
+              <tr className="border-b border-gray-200 bg-gray-50/50">
+                <th className="p-4 text-sm font-semibold uppercase tracking-wider text-gray-600">Service Name</th>
+                <th className="p-4 text-sm font-semibold uppercase tracking-wider text-gray-600">Category</th>
+                <th className="p-4 text-sm font-semibold uppercase tracking-wider text-gray-600">Status</th>
+                <th className="p-4 text-right text-sm font-semibold uppercase tracking-wider text-gray-600">Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {list.paginated.map((service) => (
+                <tr key={service.id} className="transition-colors hover:bg-gray-50/50">
+                  <td className="w-2/5 p-4">
+                    <div className="font-bold text-[var(--color-primary-navy)]">{service.title}</div>
+                    <div className="text-xs text-gray-400">/{service.slug}</div>
+                  </td>
+                  <td className="w-1/4 p-4">
+                    <span className="flex items-center gap-1.5 text-sm text-gray-600">
+                      <Tag size={14} className="text-[var(--color-accent-gold)]" />
+                      {CATEGORY_MAP[service.categorySlug] || service.categorySlug}
+                    </span>
+                  </td>
+                  <td className="w-1/6 p-4">
+                    <span
+                      className={`rounded-full px-3 py-1 text-xs font-bold ${
+                        service.status !== 'Inactive'
+                          ? 'bg-emerald-100 text-emerald-700'
+                          : 'bg-red-100 text-red-700'
+                      }`}
+                    >
+                      {service.status || 'Active'}
+                    </span>
+                  </td>
+                  <td className="w-1/6 p-4 text-right">
+                    <button
+                      onClick={() => handleEdit(service)}
+                      className="mr-2 rounded-lg p-2 text-blue-600 transition-colors hover:bg-blue-50"
+                    >
+                      <Edit2 size={18} />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(service.id)}
+                      className="rounded-lg p-2 text-red-600 transition-colors hover:bg-red-50"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {list.paginated.map((service) => (
+            <div
+              key={service.id}
+              className="glass flex flex-col rounded-xl border border-gray-200 p-5 transition-all hover:shadow-xl"
+            >
+              <div className="mb-3 flex items-start justify-between gap-2">
+                <span className="flex items-center gap-1 text-xs font-bold text-gray-500">
+                  <Tag size={12} className="text-[var(--color-accent-gold)]" />
+                  {CATEGORY_MAP[service.categorySlug] || service.categorySlug}
+                </span>
+                <span
+                  className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
+                    service.status !== 'Inactive'
+                      ? 'bg-emerald-100 text-emerald-700'
+                      : 'bg-red-100 text-red-700'
+                  }`}
+                >
+                  {service.status || 'Active'}
+                </span>
+              </div>
+              <h3 className="text-lg font-bold text-[var(--color-primary-navy)]">{service.title}</h3>
+              <p className="text-xs text-gray-400">/{service.slug}</p>
+              <p className="mt-3 line-clamp-3 flex-1 text-sm text-gray-600">{service.description}</p>
+              <div className="mt-4 flex gap-2 border-t border-gray-100 pt-4">
+                <button
+                  onClick={() => handleEdit(service)}
+                  className="flex-1 rounded-lg bg-blue-50 py-2 text-xs font-bold text-blue-600 hover:bg-blue-100"
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => handleDelete(service.id)}
+                  className="flex-1 rounded-lg bg-red-50 py-2 text-xs font-bold text-red-600 hover:bg-red-100"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

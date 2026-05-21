@@ -75,6 +75,95 @@
   }
 }
 
+/* Jodit editor — keep dropdowns above form chrome */
+.jodit-container:not(.jodit_inline) {
+  border-radius: 0.5rem;
+}
+
+.jodit-toolbar__box {
+  flex-wrap: wrap;
+  gap: 2px;
+}
+
+.jodit-popup,
+.jodit-toolbar-popup {
+  z-index: 60 !important;
+}
+
+.jodit-ui-list,
+.jodit-ui-select__list {
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.jodit-ui-list__item,
+.jodit-ui-select__item {
+  font-size: 13px;
+}
+
+/* Pasted rich content (ChatGPT / Gemini / Word) — preserve structure in editor */
+.jodit-wysiwyg {
+  line-height: 1.6;
+}
+
+.jodit-wysiwyg h1 {
+  font-size: 2rem;
+  font-weight: 800;
+  margin: 1rem 0 0.5rem;
+}
+
+.jodit-wysiwyg h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0.875rem 0 0.5rem;
+}
+
+.jodit-wysiwyg h3 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0.75rem 0 0.5rem;
+}
+
+.jodit-wysiwyg h4 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin: 0.75rem 0 0.375rem;
+}
+
+.jodit-wysiwyg p {
+  margin: 0.5rem 0;
+}
+
+.jodit-wysiwyg ul {
+  list-style-type: disc;
+  margin: 0.5rem 0;
+  padding-left: 1.5rem;
+}
+
+.jodit-wysiwyg ol {
+  list-style-type: decimal;
+  margin: 0.5rem 0;
+  padding-left: 1.5rem;
+}
+
+.jodit-wysiwyg li {
+  margin: 0.25rem 0;
+}
+
+.jodit-wysiwyg blockquote {
+  border-left: 4px solid var(--color-accent-gold);
+  margin: 0.75rem 0;
+  padding-left: 1rem;
+  color: #4b5563;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  overflow: hidden;
+}
+
 body {
   background: var(--color-surface-soft);
   color: var(--color-text-primary);
